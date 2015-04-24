@@ -10,9 +10,14 @@
 #include <unistd.h>
 #include <termios.h>
 #include <stdlib.h>
+#include <fcntl.h>
+
 
 #include "uart_config.h"
 
+/**	 	Set terminal to RAW mode only. 
+ * 		For transparent serial port: use Set_Serial_Port() funtion,
+ * **/
 void Set_RAW_Mode( struct termios* termios_p)
 {
 	// Ideal for a transparent serial I/O port
@@ -57,9 +62,25 @@ speed_t Set_Baud(long* baud)
 	return linespeed;
 }
 
-int Set_Serial_Port(int fd, struct termios* termios_p,long* baud, int timeout)
+int Set_Serial_Port(int fd, char* filepath,struct termios* option_4_restore,long* baud, int timeout)
 {
 	speed_t linerate;
+	struct termios option_4_set;
+	struct termios* termios_p;
+
+	termios_p = &option_4_set;
+
+	fd = open(filepath,O_NOCTTY | O_RDWR | O_NONBLOCK );
+	
+	if( tcgetattr(fd, option_4_restore) != 0){
+		perror("get old termios setting");
+		return -1;
+	}
+
+	if( tcgetattr(fd, termios_p) != 0){
+		perror("get termios for modification");
+		return -1;
+	}
 	
 	Set_RAW_Mode(termios_p);
 	linerate = Set_Baud(baud);
