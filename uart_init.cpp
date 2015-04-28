@@ -1,3 +1,10 @@
+//************************/
+// *
+// *	file: uart_init.cpp
+// *
+// *
+// *
+/****************************/
 #include <termios.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -13,6 +20,21 @@ const long Baud_table[][2] = {
 	{57600, B57600},
 	{115200, B115200}
 	};
+/****************************************************************************/
+//	varibbles: int* 		pointer to file descriptor 
+//			char* 			filepath 
+//			speed_t*		baud_rate ( int or long )
+//			struct termios*	old_termios	( used to restore terminal when done)
+//			long*	timeout	timeout for read() function
+//			
+//			Note:		
+//			if timeout != 0, read() with timeout
+//						     return 0 when no bytes availale
+//									 
+//			if timeout = 0, polling read.
+//				if O_NONBLOCK flag set, return -1 when no byte available
+//				if O_NONBLOCK flag clear, return 0 when no byte savaliable
+/****************************************************************************/
 
 int uart_nonblock_init(int* serial,char *file,speed_t* speed, struct termios* option_old, long *timeout)
 {
@@ -52,22 +74,25 @@ int uart_nonblock_init(int* serial,char *file,speed_t* speed, struct termios* op
 	option.c_cflag |= (CS8);			// 8 bits per character
 	option.c_cflag &= ~CRTSCTS;
 
+	option.c_iflag &= ~IGNBRK;
+	option.c_iflag &= ~BRKINT;
+	option.c_iflag &= ~PARMRK;
 	option.c_iflag &= ~INPCK;			// disable input parity check
 	option.c_iflag &= ~ISTRIP;		// valid byte is not striped to 7-bits
 	option.c_iflag &= ~IGNCR;			// input '\r' is discard
  	option.c_iflag &= ~INLCR;			// input '\n' would not be convert to '\r'
-	option.c_iflag |= ~ICRNL;			// if IGNCR is clear, then \r -. \n	
+	option.c_iflag &= ~ICRNL;			// if IGNCR is clear, then \r -. \n	
 
 	option.c_oflag &= ~OPOST;
-	option.c_oflag &= ~(IXON | IXOFF | IXANY);
+	option.c_iflag &= ~(IXON | IXOFF | IXANY);
 
-	option.c_cc[VMIN] = 0;			// would not block if no byte available
+	option.c_cc[VMIN] = 0;				// would not block if no byte available
 	option.c_cc[VTIME]= *timeout;			// read timeout is 10 * 100ms = 1 Second
 
 	option.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
 										// ISIG clear: INTR, QUIT, STOP characters not recognized
 										
-	int index;
+	unsigned int index;
 	for( index = 0; index < (sizeof(Baud_table)/sizeof(Baud_table[0]));index++)
 	{
 		if( Baud_table[index][0] == *speed){
@@ -103,3 +128,4 @@ int uart_nonblock_init(int* serial,char *file,speed_t* speed, struct termios* op
 		return (-1);
 	}	
 }
+
